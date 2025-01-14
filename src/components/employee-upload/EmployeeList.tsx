@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { writeFile, utils } from 'xlsx';
 import type { EmployeeUploadData } from '@/types/employee';
-import { ChevronDown, ChevronUp, ArrowUpDown, Search, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, ArrowUpDown, Search, Check, Download } from 'lucide-react';
 import { EmployeeStatistics } from './EmployeeStatistics';
+import { normalizeNationality } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface EmployeeListProps {
   employees: EmployeeUploadData[];
@@ -20,6 +23,7 @@ export function EmployeeList({ employees }: EmployeeListProps) {
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const { toast } = useToast();
 
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
@@ -80,15 +84,40 @@ export function EmployeeList({ employees }: EmployeeListProps) {
     setShowRoleDropdown(false);
   };
 
-  const normalizeNationality = (nationality: string = ''): string => {
-    const normalized = nationality.toLowerCase().trim();
-    if (normalized === 'pr' || 
-        normalized === 'permanent resident' || 
-        normalized.includes('permanent resident') || 
-        normalized.includes('pr')) {
-      return 'pr';
+  const handleExport = () => {
+    try {
+      const exportData = sortedAndFilteredEmployees.map(employee => ({
+        'Employee ID': employee.employeeId,
+        'First Name': employee.firstName,
+        'Last Name': employee.lastName,
+        'Email': employee.email,
+        'Role': employee.position,
+        'Department': employee.department,
+        'Nationality': employee.nationality,
+        'Employment Type': employee.employmentType,
+        'Status': getStatusDisplay(employee.status),
+        'Basic Salary': employee.basicSalary,
+        'Allowances': employee.allowances,
+        'Start Date': employee.startDate,
+      }));
+
+      const wb = utils.book_new();
+      const ws = utils.json_to_sheet(exportData);
+
+      utils.book_append_sheet(wb, ws, 'Employees');
+      writeFile(wb, 'employees.xlsx');
+
+      toast({
+        description: "Employee data exported successfully",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        description: "Failed to export employee data",
+        duration: 3000,
+      });
     }
-    return normalized;
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -142,7 +171,6 @@ export function EmployeeList({ employees }: EmployeeListProps) {
       .filter(employee => {
         const searchLower = searchTerm.toLowerCase().trim();
         
-        // Special handling for nationality search
         const normalizedNationality = normalizeNationality(employee.nationality);
         const normalizedSearch = normalizeNationality(searchLower);
         
@@ -197,7 +225,6 @@ export function EmployeeList({ employees }: EmployeeListProps) {
       });
   }, [employees, sortField, sortDirection, searchTerm, statusFilter, roleFilter]);
 
-  // Get unique roles from employees
   const uniqueRoles = useMemo(() => {
     return [...new Set(employees.map(e => e.position))].sort();
   }, [employees]);
@@ -221,6 +248,17 @@ export function EmployeeList({ employees }: EmployeeListProps) {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700"
+            style={{
+              gap: "8px",
+            }}
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
 
           {/* Status Dropdown */}
           <div className="relative" ref={statusDropdownRef}>

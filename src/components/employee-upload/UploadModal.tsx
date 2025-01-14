@@ -202,7 +202,7 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
                       fontWeight: 500
                     }}
                   >
-                    {uploadState === 'uploading' ? 'Uploading your file...' : 'Processing employees...'}
+                    {uploadState === 'uploading' ? 'Please wait while we uplaod your file...' : 'Processing employees...'}
                   </p>
                 </div>
               ) : (
